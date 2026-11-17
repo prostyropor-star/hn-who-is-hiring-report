@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HN Who is Hiring - searchable startup jobs (remote, salary, visa)</title>
+<meta name="description" content="Search this month's Hacker News 'Who is hiring?' jobs by keyword, remote, salary and visa sponsorship. Fresh data straight from the HN API.">
+<style>
+:root{--bg:#0f172a;--card:#1e293b;--text:#e2e8f0;--mute:#94a3b8;--acc:#f97316;--line:#334155}
+*{box-sizing:border-box}body{margin:0;font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
+header{padding:28px 20px 8px;max-width:1000px;margin:auto}h1{margin:0 0 4px;font-size:26px}h1 span{color:var(--acc)}
+.sub{color:var(--mute);margin:0}
+.bar{position:sticky;top:0;background:var(--bg);padding:12px 20px;border-bottom:1px solid var(--line);z-index:2}
+.bar .in{max-width:1000px;margin:auto;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+input[type=search],select{background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:15px}
+input[type=search]{flex:1;min-width:200px}label{color:var(--mute);font-size:14px;display:flex;gap:5px;align-items:center}
+main{max-width:1000px;margin:auto;padding:12px 20px 40px}
+.count{color:var(--mute);margin:6px 0 12px}
+.job{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:10px}
+.job h3{margin:0;font-size:17px}.job .roles{color:var(--text);margin:2px 0}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 4px}.tag{font-size:12px;padding:2px 8px;border-radius:999px;background:#0b1220;border:1px solid var(--line);color:var(--mute)}
+.tag.r{color:#4ade80;border-color:#166534}.tag.s{color:#fbbf24;border-color:#854d0e}.tag.v{color:#60a5fa;border-color:#1e3a8a}
+.job a{color:var(--acc);text-decoration:none;font-size:14px;margin-right:14px}
+details{margin-top:6px;color:var(--mute);font-size:14px}details p{white-space:pre-wrap;margin:6px 0 0}
+.cta{background:linear-gradient(90deg,#7c2d12,#1e293b);border:1px solid #9a3412;border-radius:10px;padding:14px 16px;margin:10px 0 16px}
+.cta a{color:#fff;font-weight:600}
+footer{max-width:1000px;margin:auto;padding:0 20px 40px;color:var(--mute);font-size:13px}footer a{color:var(--mute)}
+</style>
+</head>
+<body>
+<header>
+<h1><span>HN</span> Who is Hiring, searchable</h1>
+<p class="sub" id="thread">Loading the latest thread from the Hacker News API...</p>
+</header>
+<div class="bar"><div class="in">
+<input type="search" id="q" placeholder="Search: rust, python, berlin, AI, founding engineer...">
+<select id="mode"><option value="">Any work mode</option><option value="remote">Remote</option><option value="hybrid">Hybrid</option><option value="onsite">Onsite</option></select>
+<select id="month"></select>
+<label><input type="checkbox" id="sal"> Salary listed</label>
+<label><input type="checkbox" id="visa"> Visa</label>
+</div></div>
+<main>
+<div class="cta">Want these jobs as a spreadsheet, or only <b>new</b> posts every day in email, Slack or Google Sheets? &rarr; <a href="https://apify.com/mistlike_potato/hn-who-is-hiring-jobs-parser">HN Who is Hiring Jobs Scraper</a></div>
+<div class="count" id="count"></div>
+<div id="list"></div>
+</main>
+<footer>
+Data comes live from the public <a href="https://hn.algolia.com/api">Hacker News API</a>; every job links to the original post. Parsing is automatic and may miss details, so check the original post.
+Monthly stats: <a href="https://github.com/prostyropor-star/hn-who-is-hiring-report">HN hiring report</a> &middot;
+More job data: <a href="https://apify.com/mistlike_potato/career-site-jobs-scraper">Jobs from 34,000+ company career sites</a> &middot;
+<a href="https://github.com/prostyropor-star/awesome-job-data-apis">Awesome Job Data APIs</a><br>
+Made by ProStyropor. Not affiliated with Hacker News or Y Combinator.
+</footer>
+<script>
+const API='https://hn.algolia.com/api/v1';
+const $=id=>document.getElementById(id);
+const dec=s=>{const t=document.createElement('textarea');t.innerHTML=s;return t.value};
+const toText=h=>dec(String(h||'').replace(/<p>/gi,'\n\n').replace(/<a [^>]*href="([^"]+)"[^>]*>[^<]*<\/a>/gi,' $1 ').replace(/<[^>]+>/g,'')).replace(/[ \t]+/g,' ').trim();
+const SAL=/([$€£]|usd|eur|gbp|chf)\s?\d|\b\d{2,3}\s?k\b/i;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let jobs=[];
+function parse(c){
+  const text=toText(c.text),first=text.split('\n')[0],head=first.toLowerCase();
+  const parts=first.split(/\s*[|•]\s*/).map(s=>s.trim()).filter(Boolean);
+  let mode='';if(/\bhybrid\b/.test(head))mode='hybrid';
+  if(/\bremote\b/.test(head))mode=mode||'remote';else if(/\b(onsite|on-site|in[- ]office)\b/.test(head))mode=mode||'onsite';
+  const urls=[...text.matchAll(/https?:\/\/[^\s)\]]+/g)].map(m=>m[0].replace(/[.,;]$/,''));
+  return {id:c.id,company:parts[0]||'',rest:parts.slice(1).filter(p=>!/^https?:/.test(p)).join(' · '),mode,
+    region:(first.match(/remote\s*\(([^)]+)\)/i)||[])[1]||'',salary:(parts.find(p=>SAL.test(p))||''),
+    visa:/no visa|not sponsor|cannot sponsor|unable to sponsor|no sponsorship/i.test(text)?false:/\bvisa\b|sponsor/i.test(text),
+    apply:urls.find(u=>!/ycombinator\.com/.test(u))||'',text,low:text.toLowerCase()};
+}
+function render(){
+  const q=$('q').value.toLowerCase().split(/\s+/).filter(Boolean),m=$('mode').value,sal=$('sal').checked,visa=$('visa').checked;
+  const r=jobs.filter(j=>(!m||j.mode===m)&&(!sal||j.salary)&&(!visa||j.visa)&&q.every(w=>j.low.includes(w)));
+  $('count').textContent=`${r.length} of ${jobs.length} jobs`;
+  $('list').innerHTML=r.slice(0,300).map(j=>`<div class="job"><h3>${esc(j.company)}</h3><div class="roles">${esc(j.rest)}</div>
+  <div class="tags">${j.mode?`<span class="tag r">${j.mode}${j.region?' ('+esc(j.region)+')':''}</span>`:''}${j.salary?`<span class="tag s">${esc(j.salary)}</span>`:''}${j.visa?'<span class="tag v">visa</span>':''}</div>
+  ${j.apply?`<a href="${esc(j.apply)}" rel="nofollow noopener" target="_blank">Apply / company site</a>`:''}<a href="https://news.ycombinator.com/item?id=${j.id}" target="_blank" rel="noopener">HN post</a>
+  <details><summary>Full post</summary><p>${esc(j.text)}</p></details></div>`).join('');
+}
+async function load(id,title){
+  $('thread').textContent='Loading '+title+'...';$('list').innerHTML='';
+  const it=await fetch(`${API}/items/${id}`).then(r=>r.json());
+  jobs=(it.children||[]).filter(c=>c.text&&c.author).map(parse);
+  $('thread').innerHTML=`${esc(title)}: ${jobs.length} job posts, live from the <a style="color:var(--acc)" href="https://news.ycombinator.com/item?id=${id}">HN thread</a>.`;
+  render();
+}
+(async()=>{
+  try{
+    const d=await fetch(`${API}/search_by_date?tags=story,author_whoishiring&hitsPerPage=30`).then(r=>r.json());
+    const th=d.hits.filter(h=>/who is hiring/i.test(h.title)).slice(0,12);
+    $('month').innerHTML=th.map(h=>`<option value="${h.objectID}">${esc((h.title.match(/\(([^)]+)\)/)||[])[1]||h.title)}</option>`).join('');
+    $('month').onchange=e=>load(e.target.value,e.target.selectedOptions[0].textContent+' thread');
+    const p=new URLSearchParams(location.search);if(p.get('q'))$('q').value=p.get('q');
+    await load(th[0].objectID,th[0].title);
+  }catch(e){$('thread').textContent='Could not load the HN API right now. Please refresh.';}
+  for(const id of ['q','mode','sal','visa'])$(id).addEventListener('input',render);
+})();
+</script>
+</body>
+</html>
