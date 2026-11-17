@@ -1,5 +1,7 @@
 # HN "Who is Hiring?" Monthly Report
 
+**🔎 Search this month's jobs live: [prostyropor-star.github.io/hn-who-is-hiring-report](https://prostyropor-star.github.io/hn-who-is-hiring-report/)** (filter by keyword, remote, salary, visa)
+
 Numbers from the monthly **Ask HN: Who is hiring?** thread on Hacker News, parsed into structured data (company, role, remote policy, salary, tech stack). Updated monthly.
 
 ## November 2026 (245 job posts)
