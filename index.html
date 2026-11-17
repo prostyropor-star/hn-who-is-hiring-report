@@ -65,7 +65,7 @@ function parse(c){
   let mode='';if(/\bhybrid\b/.test(head))mode='hybrid';
   if(/\bremote\b/.test(head))mode=mode||'remote';else if(/\b(onsite|on-site|in[- ]office)\b/.test(head))mode=mode||'onsite';
   const urls=[...text.matchAll(/https?:\/\/[^\s)\]]+/g)].map(m=>m[0].replace(/[.,;]$/,''));
-  return {id:c.id,company:parts[0]||'',rest:parts.slice(1).filter(p=>!/^https?:/.test(p)).join(' · '),mode,
+  return {id:c.id,company:parts[0]||'',rest:parts.slice(1).filter(p=>!/^https?:/.test(p)).join(' · ').slice(0,220),mode,
     region:(first.match(/remote\s*\(([^)]+)\)/i)||[])[1]||'',salary:(parts.find(p=>SAL.test(p))||''),
     visa:/no visa|not sponsor|cannot sponsor|unable to sponsor|no sponsorship/i.test(text)?false:/\bvisa\b|sponsor/i.test(text),
     apply:urls.find(u=>!/ycombinator\.com/.test(u))||'',text,low:text.toLowerCase()};
